@@ -1,0 +1,114 @@
+-- Скрипт для Grow a Garden - мгновенный рост и увеличение плодов
+local Player = game:GetService("Players").LocalPlayer
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+-- Настройки
+local HOTKEY = Enum.KeyCode.Q -- Изменили на Q
+local SIZE_MULTIPLIER = 10 -- Во сколько раз увеличивать плоды
+
+-- Переменные
+local targetPlant = nil
+local connection = nil
+
+-- Функция для поиска растения под курсором
+local function findPlantUnderCursor()
+    local mouse = Player:GetMouse()
+    local target = mouse.Target
+    if target then
+        -- Ищем родительское растение (может потребоваться адаптация под конкретную игру)
+        local plant = target:FindFirstAncestorOfClass("Model")
+        if plant and (plant:FindFirstChild("Fruits") or plant:FindFirstChild("Fruit")) then
+            return plant
+        end
+    end
+    return nil
+end
+
+-- Функция для обработки растений
+local function processPlant(plant)
+    if not plant then return end
+    
+    -- Находим все плоды (пробуем разные варианты названий папок)
+    local fruitsFolder = plant:FindFirstChild("Fruits") or plant:FindFirstChild("Fruit") or plant:FindFirstChild("Harvest")
+    if not fruitsFolder then return end
+    
+    -- Увеличиваем и мгновенно выращиваем все плоды
+    for _, fruit in ipairs(fruitsFolder:GetChildren()) do
+        if fruit:IsA("BasePart") then
+            -- Увеличиваем размер
+            fruit.Size = fruit.Size * SIZE_MULTIPLIER
+            
+            -- Если есть атрибут роста, устанавливаем максимальное значение
+            if fruit:GetAttribute("Growth") then
+                fruit:SetAttribute("Growth", 100)
+            elseif fruit:GetAttribute("Stage") then
+                fruit:SetAttribute("Stage", 999)
+            end
+            
+            -- Если есть возможность изменить прозрачность (для незрелых плодов)
+            if fruit:FindFirstChildWhichIsA("SurfaceAppearance") then
+                fruit.Transparency = 0
+            end
+            
+            -- Увеличиваем силу коллизии (чтобы большие плоды не проваливались)
+            fruit.CanCollide = true
+        end
+    end
+    
+    -- Попытка активировать визуальные эффекты (если есть)
+    if plant:FindFirstChild("Grow") then
+        plant.Grow:Fire()
+    elseif plant:FindFirstChild("Harvest") then
+        plant.Harvest:Fire()
+    end
+    
+    print("Обработано растение: "..plant.Name)
+end
+
+-- Функция для проверки наведения и активации
+local function checkPlant()
+    local newTarget = findPlantUnderCursor()
+    if newTarget ~= targetPlant then
+        targetPlant = newTarget
+    end
+    
+    if UIS:IsKeyDown(HOTKEY) and targetPlant then
+        processPlant(targetPlant)
+    end
+end
+
+-- Основной цикл
+connection = RunService.Heartbeat:Connect(function()
+    pcall(checkPlant) -- Обрабатываем ошибки
+end)
+
+-- Уведомление
+local notif = Instance.new("ScreenGui")
+notif.Parent = game:GetService("CoreGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 300, 0, 80)
+frame.Position = UDim2.new(0.5, -150, 0.1, 0)
+frame.BackgroundColor3 = Color3.fromRGB(40, 100, 40)
+frame.Parent = notif
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 8)
+corner.Parent = frame
+
+local label = Instance.new("TextLabel")
+label.Text = "Grow a Garden Hack активирован!\nНаведите на растение и нажмите Q\nРазмер плодов: "..SIZE_MULTIPLIER.."x"
+label.Size = UDim2.new(1, -20, 1, -20)
+label.Position = UDim2.new(0, 10, 0, 10)
+label.TextColor3 = Color3.fromRGB(255, 255, 255)
+label.BackgroundTransparency = 1
+label.TextWrapped = true
+label.Font = Enum.Font.GothamBold
+label.TextSize = 14
+label.Parent = frame
+
+task.wait(5)
+notif:Destroy()
+
+print("Grow a Garden Hack загружен! Используйте Q для активации.")
