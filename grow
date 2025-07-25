@@ -1,114 +1,216 @@
--- Скрипт для Grow a Garden - мгновенный рост и увеличение плодов
+-- Скрипт для Grow a Garden с интерфейсом
 local Player = game:GetService("Players").LocalPlayer
 local UIS = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
 -- Настройки
-local HOTKEY = Enum.KeyCode.Q -- Изменили на Q
-local SIZE_MULTIPLIER = 10 -- Во сколько раз увеличивать плоды
+local HOTKEY = Enum.KeyCode.Q
+local SIZE_MULTIPLIER = 100 -- Увеличение в 100 раз!
+local SCRIPT_ENABLED = true
 
--- Переменные
+-- Создаем интерфейс
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Parent = game:GetService("CoreGui")
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 250, 0, 40) -- Начальный размер (свернуто)
+MainFrame.Position = UDim2.new(0.8, 0, 0.1, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(40, 90, 40)
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = ScreenGui
+
+-- Закругление углов
+local Corner = Instance.new("UICorner")
+Corner.CornerRadius = UDim.new(0, 6)
+Corner.Parent = MainFrame
+
+-- Заголовок
+local TitleBar = Instance.new("Frame")
+TitleBar.Size = UDim2.new(1, 0, 0, 30)
+TitleBar.BackgroundColor3 = Color3.fromRGB(50, 110, 50)
+TitleBar.Parent = MainFrame
+
+local TitleCorner = Instance.new("UICorner")
+TitleCorner.CornerRadius = UDim.new(0, 6)
+TitleCorner.Parent = TitleBar
+
+local Title = Instance.new("TextLabel")
+Title.Text = "Garden HACK v2.0"
+Title.Size = UDim2.new(0.6, 0, 1, 0)
+Title.Position = UDim2.new(0.05, 0, 0, 0)
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.BackgroundTransparency = 1
+Title.Font = Enum.Font.GothamBold
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = TitleBar
+
+-- Кнопка сворачивания
+local MinimizeBtn = Instance.new("TextButton")
+MinimizeBtn.Text = "-"
+MinimizeBtn.Size = UDim2.new(0, 25, 0, 25)
+MinimizeBtn.Position = UDim2.new(0.7, 0, 0.5, -12)
+MinimizeBtn.BackgroundColor3 = Color3.fromRGB(70, 130, 70)
+MinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinimizeBtn.Parent = TitleBar
+
+-- Кнопка закрытия
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Text = "X"
+CloseBtn.Size = UDim2.new(0, 25, 0, 25)
+CloseBtn.Position = UDim2.new(0.85, 0, 0.5, -12)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(130, 70, 70)
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.Parent = TitleBar
+
+-- Контент (скрыт при запуске)
+local ContentFrame = Instance.new("Frame")
+ContentFrame.Size = UDim2.new(1, 0, 0, 120)
+ContentFrame.Position = UDim2.new(0, 0, 0, 35)
+ContentFrame.BackgroundTransparency = 1
+ContentFrame.Visible = false
+ContentFrame.Parent = MainFrame
+
+-- Статус скрипта
+local StatusLabel = Instance.new("TextLabel")
+StatusLabel.Text = "Статус: АКТИВЕН"
+StatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+StatusLabel.Size = UDim2.new(0.9, 0, 0, 25)
+StatusLabel.Position = UDim2.new(0.05, 0, 0, 5)
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.Font = Enum.Font.GothamBold
+StatusLabel.Parent = ContentFrame
+
+-- Информация
+local InfoLabel = Instance.new("TextLabel")
+InfoLabel.Text = "Наведите на растение\nи нажмите Q"
+InfoLabel.TextColor3 = Color3.fromRGB(200, 255, 200)
+InfoLabel.Size = UDim2.new(0.9, 0, 0, 40)
+InfoLabel.Position = UDim2.new(0.05, 0, 0, 30)
+InfoLabel.BackgroundTransparency = 1
+InfoLabel.TextWrapped = true
+InfoLabel.Parent = ContentFrame
+
+-- Кнопка выключения
+local ToggleBtn = Instance.new("TextButton")
+ToggleBtn.Text = "ВЫКЛЮЧИТЬ СКРИПТ"
+ToggleBtn.Size = UDim2.new(0.9, 0, 0, 30)
+ToggleBtn.Position = UDim2.new(0.05, 0, 0, 80)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(150, 70, 70)
+ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleBtn.Parent = ContentFrame
+
+-- Стилизация кнопок
+local function styleButton(btn)
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 4)
+    Corner.Parent = btn
+    
+    local Stroke = Instance.new("UIStroke")
+    Stroke.Color = Color3.fromRGB(100, 100, 100)
+    Stroke.Thickness = 1
+    Stroke.Parent = btn
+end
+
+styleButton(MinimizeBtn)
+styleButton(CloseBtn)
+styleButton(ToggleBtn)
+
+-- Логика скрипта
 local targetPlant = nil
 local connection = nil
 
--- Функция для поиска растения под курсором
 local function findPlantUnderCursor()
     local mouse = Player:GetMouse()
     local target = mouse.Target
     if target then
-        -- Ищем родительское растение (может потребоваться адаптация под конкретную игру)
         local plant = target:FindFirstAncestorOfClass("Model")
-        if plant and (plant:FindFirstChild("Fruits") or plant:FindFirstChild("Fruit")) then
+        if plant and (plant:FindFirstChild("Fruits") or plant:FindFirstChild("Fruit") or plant:FindFirstChild("Harvest")) then
             return plant
         end
     end
     return nil
 end
 
--- Функция для обработки растений
 local function processPlant(plant)
-    if not plant then return end
+    if not plant or not SCRIPT_ENABLED then return end
     
-    -- Находим все плоды (пробуем разные варианты названий папок)
     local fruitsFolder = plant:FindFirstChild("Fruits") or plant:FindFirstChild("Fruit") or plant:FindFirstChild("Harvest")
     if not fruitsFolder then return end
     
-    -- Увеличиваем и мгновенно выращиваем все плоды
     for _, fruit in ipairs(fruitsFolder:GetChildren()) do
         if fruit:IsA("BasePart") then
-            -- Увеличиваем размер
             fruit.Size = fruit.Size * SIZE_MULTIPLIER
+            fruit.CanCollide = true
             
-            -- Если есть атрибут роста, устанавливаем максимальное значение
             if fruit:GetAttribute("Growth") then
                 fruit:SetAttribute("Growth", 100)
             elseif fruit:GetAttribute("Stage") then
                 fruit:SetAttribute("Stage", 999)
             end
             
-            -- Если есть возможность изменить прозрачность (для незрелых плодов)
             if fruit:FindFirstChildWhichIsA("SurfaceAppearance") then
                 fruit.Transparency = 0
             end
-            
-            -- Увеличиваем силу коллизии (чтобы большие плоды не проваливались)
-            fruit.CanCollide = true
         end
     end
     
-    -- Попытка активировать визуальные эффекты (если есть)
     if plant:FindFirstChild("Grow") then
         plant.Grow:Fire()
     elseif plant:FindFirstChild("Harvest") then
         plant.Harvest:Fire()
     end
-    
-    print("Обработано растение: "..plant.Name)
 end
 
--- Функция для проверки наведения и активации
 local function checkPlant()
     local newTarget = findPlantUnderCursor()
     if newTarget ~= targetPlant then
         targetPlant = newTarget
     end
     
-    if UIS:IsKeyDown(HOTKEY) and targetPlant then
+    if UIS:IsKeyDown(HOTKEY) and targetPlant and SCRIPT_ENABLED then
         processPlant(targetPlant)
     end
 end
 
--- Основной цикл
-connection = RunService.Heartbeat:Connect(function()
-    pcall(checkPlant) -- Обрабатываем ошибки
+-- Обработчики интерфейса
+MinimizeBtn.MouseButton1Click:Connect(function()
+    ContentFrame.Visible = not ContentFrame.Visible
+    MainFrame.Size = UDim2.new(0, 250, 0, ContentFrame.Visible and 160 or 40)
+    MinimizeBtn.Text = ContentFrame.Visible and "-" or "+"
 end)
 
--- Уведомление
-local notif = Instance.new("ScreenGui")
-notif.Parent = game:GetService("CoreGui")
+CloseBtn.MouseButton1Click:Connect(function()
+    ScreenGui:Destroy()
+    if connection then
+        connection:Disconnect()
+    end
+end)
 
-local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 300, 0, 80)
-frame.Position = UDim2.new(0.5, -150, 0.1, 0)
-frame.BackgroundColor3 = Color3.fromRGB(40, 100, 40)
-frame.Parent = notif
+ToggleBtn.MouseButton1Click:Connect(function()
+    SCRIPT_ENABLED = not SCRIPT_ENABLED
+    if SCRIPT_ENABLED then
+        StatusLabel.Text = "Статус: АКТИВЕН"
+        StatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+        ToggleBtn.Text = "ВЫКЛЮЧИТЬ СКРИПТ"
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(150, 70, 70)
+    else
+        StatusLabel.Text = "Статус: ВЫКЛЮЧЕН"
+        StatusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+        ToggleBtn.Text = "ВКЛЮЧИТЬ СКРИПТ"
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(70, 150, 70)
+    end
+end)
 
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 8)
-corner.Parent = frame
+-- Запуск основного цикла
+connection = RunService.Heartbeat:Connect(function()
+    pcall(checkPlant)
+end)
 
-local label = Instance.new("TextLabel")
-label.Text = "Grow a Garden Hack активирован!\nНаведите на растение и нажмите Q\nРазмер плодов: "..SIZE_MULTIPLIER.."x"
-label.Size = UDim2.new(1, -20, 1, -20)
-label.Position = UDim2.new(0, 10, 0, 10)
-label.TextColor3 = Color3.fromRGB(255, 255, 255)
-label.BackgroundTransparency = 1
-label.TextWrapped = true
-label.Font = Enum.Font.GothamBold
-label.TextSize = 14
-label.Parent = frame
+-- Первоначальное раскрытие
+task.wait(1)
+ContentFrame.Visible = true
+MainFrame.Size = UDim2.new(0, 250, 0, 160)
+MinimizeBtn.Text = "-"
 
-task.wait(5)
-notif:Destroy()
-
-print("Grow a Garden Hack загружен! Используйте Q для активации.")
+print("Garden HACK loaded! Size multiplier: "..SIZE_MULTIPLIER.."x")
